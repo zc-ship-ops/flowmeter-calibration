@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>流量计环道检定实验 — 三维工艺动画（8分镜 · 6标定点）</title>
+<style>
+  :root { --bg:#1a1a30; --panel:rgba(14,14,28,0.94); --text:#ccc; --accent:#4fc3f7; --green:#4caf84; --red:#e0556a; --gold:#ffb74d; --warn:#ff9100; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif; overflow:hidden; height:100vh; user-select:none; }
+  #canvas3d { display:block; position:fixed; top:0; left:0; width:100%; height:100%; }
+
+  #top-bar { position:fixed; top:0; left:0; right:0; z-index:10; background:linear-gradient(180deg, rgba(0,0,0,0.88) 0%, transparent 100%); padding:10px 20px 22px; display:flex; align-items:center; gap:18px; pointer-events:none; }
+  #top-bar>* { pointer-events:auto; }
+  #title { font-size:1.05rem; font-weight:700; color:#fff; letter-spacing:2px; text-shadow:0 0 18px rgba(79,195,247,0.4); }
+  #scene-dots { display:flex; gap:5px; }
+  .scene-dot { width:9px;height:9px;border-radius:50%;background:#3a3a4a;transition:all 0.45s; }
+  .scene-dot.active { background:var(--accent); box-shadow:0 0 10px var(--accent); transform:scale(1.35); }
+  .scene-dot.done { background:var(--green); }
+
+  #bottom-bar { position:fixed; bottom:0; left:0; right:0; z-index:10; background:linear-gradient(0deg, rgba(0,0,0,0.9) 0%, transparent 100%); padding:22px 20px 12px; display:flex; align-items:flex-end; justify-content:center; gap:14px; }
+  #scene-label { color:#fff; font-size:0.95rem; font-weight:600; text-align:center; min-width:220px; text-shadow:0 0 8px rgba(0,0,0,0.8); }
+  #scene-desc { color:#aab; font-size:0.74rem; text-align:center; max-width:460px; text-shadow:0 0 6px rgba(0,0,0,0.8); }
+  .ctrl-btn { padding:7px 18px; border-radius:18px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.05); color:#ccd; cursor:pointer; font-size:0.78rem; backdrop-filter:blur(6px); transition:all 0.25s; letter-spacing:1px; }
+  .ctrl-btn:hover { background:rgba(255,255,255,0.14); border-color:var(--accent); color:#fff; box-shadow:0 0 14px rgba(79,195,247,0.2); }
+  .ctrl-btn.active-btn { background:var(--accent); border-color:var(--accent); color:#000; font-weight:700; }
+
+  #right-panel { position:fixed; right:12px; top:50%; transform:translateY(-50%); z-index:10; display:flex; flex-direction:column; gap:10px; }
+  .info-card { background:var(--panel); border-radius:12px; border:1px solid rgba(255,255,255,0.08); padding:14px 16px; backdrop-filter:blur(10px); min-width:195px; }
+  .info-card h3 { color:var(--accent); font-size:0.75rem; letter-spacing:1.5px; margin-bottom:10px; text-align:center; text-transform:uppercase; }
+  .info-card .row { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.74rem; }
+  .info-card .row .lbl { color:#889; }
+  .info-card .row .val { color:#fff; font-weight:600; font-family:'Cascadia Code','Consolas',monospace; }
+  .info-card .row .val.warn { color:var(--gold); }
+  .bar-row { margin:4px 0; }
+  .bar-row .bar-hdr { font-size:0.68rem; color:#889; display:flex; justify-content:space-between; }
+  .bar-row .bar-bg { height:5px; background:rgba(255,255,255,0.07); border-radius:3px; margin-top:2px; overflow:hidden; }
+  .bar-row .bar-fg { height:100%; border-radius:3px; transition:width 0.5s ease-out; }
+  .bar-fg.std { background:var(--accent); }
+  .bar-fg.dut { background:var(--gold); }
+
+  #cal-table { font-size:0.7rem; width:100%; border-collapse:collapse; margin-top:6px; }
+  #cal-table th { color:#889; font-weight:400; text-align:left; padding:2px 4px; border-bottom:1px solid rgba(255,255,255,0.1); }
+  #cal-table td { color:#ccc; padding:2px 4px; text-align:right; font-family:'Cascadia Code','Consolas',monospace; }
+  #cal-table td.pt { text-align:left; color:var(--gold); }
+  #cal-table td.done { color:var(--green); }
+  #cal-table td.current { color:var(--accent); animation:pulse 0.8s ease-in-out infinite alternate; }
+  @keyframes pulse { from { opacity:0.5; } to { opacity:1; } }
+
+  #left-side { position:fixed; left:12px; top:50%; transform:translateY(-50%); z-index:10; display:flex; flex-direction:column; gap:8px; max-width:210px; }
+  #legend { background:var(--panel); border-radius:12px; border:1px solid rgba(255,255,255,0.08); padding:10px 13px; backdrop-filter:blur(10px); font-size:0.66rem; }
+  #legend .item { display:flex; align-items:center; gap:6px; margin:3px 0; color:#99a; }
+  #legend .swatch { width:9px;height:9px;border-radius:2px; flex-shrink:0; }
+  #legend .swatch.circle { border-radius:50%; }
+
+  #principle-card { background:var(--panel); border-radius:12px; border:1px solid rgba(255,255,255,0.1); padding:12px 14px; backdrop-filter:blur(10px); font-size:0.7rem; max-height:380px; overflow-y:auto; }
+  #principle-card h3 { color:var(--gold); font-size:0.72rem; letter-spacing:1px; margin-bottom:10px; display:flex; align-items:center; gap:5px; }
+  #principle-card .principle-item { padding:6px 8px; margin:4px 0; border-left:2px solid rgba(255,255,255,0.15); border-radius:0 6px 6px 0; background:rgba(255,255,255,0.02); color:#bbc; font-size:0.68rem; line-height:1.5; transition:all 0.4s; }
+  #principle-card .principle-item.highlight { border-left-color:var(--accent); background:rgba(79,195,247,0.08); color:#fff; }
+  #principle-card .principle-item .p-tag { display:inline-block; font-size:0.6rem; padding:1px 6px; border-radius:8px; margin-right:4px; font-weight:600; }
+  .p-tag.formula { background:rgba(79,195,247,0.2); color:var(--accent); }
+  .p-tag.key { background:rgba(255,183,77,0.2); color:var(--gold); }
+  .p-tag.warn { background:rgba(224,85,106,0.2); color:var(--red); }
+
+  #status-toast { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0); z-index:20; background:rgba(0,0,0,0.85); color:#fff; padding:10px 24px; border-radius:22px; font-size:0.85rem; font-weight:600; pointer-events:none; transition:transform 0.25s cubic-bezier(0.175,0.885,0.32,1.275); border:1px solid rgba(255,255,255,0.2); }
+  #status-toast.show { transform:translate(-50%,-50%) scale(1); }
+</style>
+</head>
+<body>
+<canvas id="canvas3d"></canvas>
+
+<div id="top-bar">
+  <span id="title">🔬 流量计环道检定实验</span>
+  <span id="scene-dots"></span>
+</div>
+
+<div id="left-side">
+  <div id="legend">
+    <div style="color:#fff;font-weight:600;margin-bottom:6px;">图例</div>
+    <div class="item"><span class="swatch" style="background:#7ec8e3;"></span> DN80 管路 (Ф80)</div>
+    <div class="item"><span class="swatch" style="background:#9adbc8;"></span> DN50 管路 (Ф50)</div>
+    <div class="item"><span class="swatch" style="background:#b8e6c8;"></span> DN32 管路 (Ф32)</div>
+    <div class="item"><span class="swatch" style="background:#ffb74d;"></span> 旁通管路</div>
+    <div class="item"><span class="swatch circle" style="background:var(--green);"></span> 阀门导通</div>
+    <div class="item"><span class="swatch circle" style="background:var(--red);"></span> 阀门关闭</div>
+    <div class="item"><span class="swatch circle" style="background:var(--warn);"></span> 调节阀节流</div>
+  </div>
+
+  <div id="principle-card">
+    <h3><span>⚙</span> 关键原理</h3>
+    <div id="principle-content">
+      <div class="principle-item">等待动画开始…</div>
+    </div>
+  </div>
+</div>
+
+<div id="right-panel">
+  <div class="info-card">
+    <h3>📊 实时工况</h3>
+    <div class="row"><span class="lbl">压力 P</span><span class="val" id="vp">0.00 kPa</span></div>
+    <div class="row"><span class="lbl">温度 T</span><span class="val" id="vt">20.0 °C</span></div>
+    <div class="row"><span class="lbl">瞬时流量</span><span class="val" id="vf">0.00 m³/h</span></div>
+    <div class="row"><span class="lbl">风机转速</span><span class="val" id="vr">0 rpm</span></div>
+    <div class="row"><span class="lbl">旁通开度</span><span class="val" id="vb">0%</span></div>
+    <div class="row"><span class="lbl">当前管径</span><span class="val" id="vd">—</span></div>
+    <div class="row"><span class="lbl">目标流量点</span><span class="val warn" id="vpt">—</span></div>
+  </div>
+
+  <div class="info-card">
+    <h3>📈 标准表 vs 被检表</h3>
+    <div class="bar-row"><div class="bar-hdr"><span>标准表</span><span id="bstd">—</span></div><div class="bar-bg"><div class="bar-fg std" id="bstd_f" style="width:0%"></div></div></div>
+    <div class="bar-row"><div class="bar-hdr"><span>被检表</span><span id="bdut">—</span></div><div class="bar-bg"><div class="bar-fg dut" id="bdut_f" style="width:0%"></div></div></div>
+  </div>
+
+  <div class="info-card">
+    <h3>📋 标定点记录</h3>
+    <table id="cal-table">
+      <thead><tr><th>#</th><th>目标点</th><th>标准表</th><th>被检表</th><th>偏差%</th></tr></thead>
+      <tbody id="cal-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="bottom-bar">
+  <button class="ctrl-btn" id="btn-prev">◀ 上一步</button>
+  <div style="text-align:center;">
+    <div id="scene-label">步骤一：初始工艺流程导通</div>
+    <div id="scene-desc">建立安全回路 — 阀门逐级开启</div>
+  </div>
+  <button class="ctrl-btn" id="btn-next">下一步 ▶</button>
+  <button class="ctrl-btn active-btn" id="btn-auto">⏯ 自动演示</button>
+  <button class="ctrl-btn" id="btn-speed">⏩ 1×</button>
+</div>
+
+<div id="status-toast"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ==================== 场景初始化 ====================
+const canvas = document.getElementById('canvas3d');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#2a2a3c');
+scene.fog = new THREE.Fog('#2a2a3c', 26, 62);
+
+const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.5, 80);
+camera.position.set(8, 6.5, 10);
+camera.lookAt(0, 0.4, 0.3);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.4, 0.3);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 4;
+controls.maxDistance = 24;
+controls.maxPolarAngle = Math.PI * 0.55;
+controls.update();
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(window.innerWidth, window.innerHeight);
+labelRenderer.domElement.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:5;';
+document.body.appendChild(labelRenderer.domElement);
+
+// 光照
+scene.add(new THREE.AmbientLight('#8899bb', 1.5));
+const sun = new THREE.DirectionalLight('#fff8e7', 4.2);
+sun.position.set(10, 14, 6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 0.5; sun.shadow.camera.far = 60;
+sun.shadow.camera.left = -18; sun.shadow.camera.right = 18;
+sun.shadow.camera.top = 12; sun.shadow.camera.bottom = -8;
+sun.shadow.bias = -0.0001;
+scene.add(sun);
+scene.add(new THREE.DirectionalLight('#8899cc', 0.7).position.set(-4,2,-3));
+
+// 地面
+const gnd = new THREE.Mesh(
+  new THREE.PlaneGeometry(30, 20),
+  new THREE.MeshStandardMaterial({ color:'#3a3a4c', roughness:0.6, metalness:0.2 })
+);
+gnd.rotation.x = -Math.PI/2; gnd.position.y = -2.4; gnd.receiveShadow = true;
+scene.add(gnd);
+const grid = new THREE.PolarGridHelper(14, 48, 24, 256, '#555568', '#444458');
+grid.position.y = -2.39; scene.add(grid);
+
+// ==================== 辅助函数 ====================
+function createPipe(pathPoints, radius, color) {
+  const curve = new THREE.CatmullRomCurve3(pathPoints.map(p => new THREE.Vector3(...p)));
+  const geo = new THREE.TubeGeometry(curve, 80, radius, 16, false);
+  const mat = new THREE.MeshStandardMaterial({ color, roughness:0.35, metalness:0.55 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = mesh.receiveShadow = true;
+  mesh.userData = { curve, radius };
+  return mesh;
+}
+
+function createValve(pos, label, color='#e0556a') {
+  const group = new THREE.Group();
+  const bodyGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.45, 12);
+  const bodyMat = new THREE.MeshStandardMaterial({ color, roughness:0.25, metalness:0.6, emissive:color, emissiveIntensity:0.4 });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 0.22;
+  group.add(body);
+  const wheelGeo = new THREE.TorusGeometry(0.16, 0.045, 8, 10);
+  const wheel = new THREE.Mesh(wheelGeo, new THREE.MeshStandardMaterial({ color:'#ddd', roughness:0.3, metalness:0.8 }));
+  wheel.position.y = 0.5;
+  group.add(wheel);
+  group.position.set(...pos);
+  group.userData = { label, body, isOpen:false, throttled:false, throttlePct:100 };
+  const div = document.createElement('div');
+  div.textContent = label;
+  div.style.cssText = 'color:#bbb;font-size:8.5px;font-weight:600;background:rgba(0,0,0,0.72);padding:1px 4px;border-radius:2px;white-space:nowrap;';
+  const tag = new CSS2DObject(div);
+  tag.position.set(0, 0.72, 0);
+  group.add(tag);
+  return group;
+}
+
+function setValveState(valve, state) {
+  // state: 'closed'=red, 'open'=green, 'throttle'=orange
+  let color, throttled=false, throttlePct=100;
+  if (state === 'open') { color = '#4caf84'; }
+  else if (state === 'throttle') { color = '#ff9100'; throttled=true; throttlePct=30; }
+  else { color = '#e0556a'; }
+  valve.userData.body.material.color.set(color);
+  valve.userData.body.material.emissive.set(color);
+  valve.userData.body.material.emissiveIntensity = throttled ? 0.85 : 0.4;
+  valve.userData.isOpen = (state !== 'closed');
+  valve.userData.throttled = throttled;
+  valve.userData.throttlePct = throttlePct;
+  valve.userData.body.scale.set(1, throttlePct/100, 1);
+}
+
+function createGauge(pos, label) {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.55,0.4,0.07), new THREE.MeshStandardMaterial({ color:'#1a1a2e', roughness:0.2, metalness:0.5 })));
+  g.add(new THREE.Mesh(new THREE.PlaneGeometry(0.44,0.27), new THREE.MeshStandardMaterial({ color:'#001122', roughness:0.1, metalness:0.3, emissive:'#003366', emissiveIntensity:0.5 })).position.set(0,0,0.04));
+  g.position.set(...pos);
+  const d = document.createElement('div');
+  d.textContent = label; d.style.cssText = 'color:#889;font-size:7.5px;background:rgba(0,0,0,0.65);padding:1px 3px;border-radius:2px;';
+  const t = new CSS2DObject(d); t.position.set(0,0.32,0); g.add(t);
+  return g;
+}
+
+// ==================== 管路系统 ====================
+const pipeGroup = new THREE.Group(); scene.add(pipeGroup);
+
+const supplyHdr  = createPipe([[-5.5,0,-1.2],[-5.5,0,2.2]], 0.28, '#8899aa');
+const returnHdr  = createPipe([[ 5.5,0,-1.2],[ 5.5,0,2.2]], 0.28, '#8899aa');
+const mainSup1   = createPipe([[-7,0,0.5],[-5.5,0,0.5]], 0.28, '#8899aa');
+const mainSup2   = createPipe([[-5.5,0,1.5],[-7,0,1.5]], 0.28, '#8899aa');
+const bypassPipe = createPipe([[-5.5,0,2.0],[ 5.5,0,2.0]], 0.19, '#ffb74d');
+const dn80Pipe   = createPipe([[-5.5,0,1.0],[ 5.5,0,1.0]], 0.24, '#7ec8e3');
+const dn50Pipe   = createPipe([[-5.5,0,0.0],[ 5.5,0,0.0]], 0.17, '#9adbc8');
+const dn32Pipe   = createPipe([[-5.5,0,-1.0],[ 5.5,0,-1.0]], 0.12, '#b8e6c8');
+const blowerIn   = createPipe([[-7,0,1.0],[-8.5,0,1.0]], 0.28, '#8899aa');
+const blowerOut  = createPipe([[-8.5,0,0.5],[-7,0,0.5]], 0.28, '#8899aa');
+
+[supplyHdr,returnHdr,mainSup1,mainSup2,bypassPipe,dn80Pipe,dn50Pipe,dn32Pipe,blowerIn,blowerOut]
+  .forEach(p => pipeGroup.add(p));
+
+// ==================== 阀门系统 ====================
+const valves = {};
+const valveGroup = new THREE.Group(); scene.add(valveGroup);
+
+// 旁通安全回路
+valves['FV134'] = createValve([-4.0,0.05,2.0], 'FV134');
+valves['HV144'] = createValve([ 4.0,0.05,2.0], 'HV144');
+
+// DN80 标准表管路
+valves['HV125'] = createValve([-3.5,0.05,1.0], 'HV125');
+valves['HV115'] = createValve([-1.0,0.05,1.0], 'HV115');
+valves['HV172'] = createValve([ 0.0,0.05,1.0], 'HV172');
+
+// DN80 被检表管路
+valves['HV171'] = createValve([ 1.0,0.05,1.0], 'HV171');
+valves['HV111'] = createValve([ 3.5,0.05,1.0], 'HV111'); // 出口
+valves['HV121'] = createValve([-2.0,0.05,1.0], 'HV121'); // 进口
+
+// DN50 隔离阀
+valves['HV113'] = createValve([-3.5,0.05,0.0], 'HV113');
+valves['HV123'] = createValve([ 3.5,0.05,0.0], 'HV123');
+
+// DN32 隔离阀
+valves['HV112'] = createValve([-3.5,0.05,-1.0], 'HV112');
+valves['HV122'] = createValve([ 3.5,0.05,-1.0], 'HV122');
+
+// 流量调节阀
+valves['FV131'] = createValve([-1.5,0.05,1.3], 'FV131');
+valves['HV141'] = createValve([ 0.5,0.05,1.25], 'HV141');
+valves['FV132'] = createValve([-1.5,0.05,0.35], 'FV132');
+valves['HV142'] = createValve([ 0.5,0.05,0.3], 'HV142');
+valves['FV133'] = createValve([-1.5,0.05,-0.6], 'FV133');
+valves['HV143'] = createValve([ 0.5,0.05,-0.65], 'HV143');
+
+// 站场旁通阀 (PPT Slide 21: 流量调节回路包含)
+valves['HV173'] = createValve([-2.5,0.05,0.7], 'HV173');
+valves['HV175'] = createValve([ 2.5,0.05,0.7], 'HV175');
+valves['HV176'] = createValve([ 2.5,0.05,-0.3], 'HV176');
+
+// 风机循环阀
+valves['HV163'] = createValve([-7.0,0.05,1.0], 'HV163');
+valves['HV162'] = createValve([-7.0,0.05,0.5], 'HV162');
+valves['HV314'] = createValve([-8.0,0.05,0.75], 'HV314');
+
+Object.values(valves).forEach(v => valveGroup.add(v));
+
+// ==================== 风机 C301 ====================
+const blowerGroup = new THREE.Group();
+blowerGroup.position.set(-8.5, 0.3, 0.75);
+scene.add(blowerGroup);
+
+const blowerBody = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.5, 0.6, 1.2, 24),
+  new THREE.MeshStandardMaterial({ color:'#667788', roughness:0.3, metalness:0.7 })
+);
+blowerBody.castShadow = true;
+blowerGroup.add(blowerBody);
+
+const impellerGroup = new THREE.Group();
+impellerGroup.position.y = 0.15;
+blowerGroup.add(impellerGroup);
+for (let i = 0; i < 8; i++) {
+  const blade = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.35, 0.4),
+    new THREE.MeshStandardMaterial({ color:'#99aabb', roughness:0.2, metalness:0.8 })
+  );
+  blade.position.x = Math.cos(i*Math.PI/4)*0.28;
+  blade.position.z = Math.sin(i*Math.PI/4)*0.28;
+  blade.rotation.y = i*Math.PI/4;
+  impellerGroup.add(blade);
+}
+
+const blowerDiv = document.createElement('div');
+blowerDiv.textContent = 'C301 漩涡风机';
+blowerDiv.style.cssText = 'color:#ffb74d;font-size:9.5px;font-weight:700;background:rgba(0,0,0,0.75);padding:2px 7px;border-radius:3px;';
+const blowerTag = new CSS2DObject(blowerDiv);
+blowerTag.position.set(0, 1.05, 0);
+blowerGroup.add(blowerTag);
+
+const vortexMat = new THREE.MeshStandardMaterial({ color:'#88ccff', roughness:0.3, metalness:0.1, transparent:true, opacity:0.25 });
+const vRing = new THREE.Mesh(new THREE.TorusGeometry(0.45,0.06,16,32), vortexMat);
+vRing.rotation.x = Math.PI/2; vRing.position.y = 0.15; blowerGroup.add(vRing);
+const vRing2 = new THREE.Mesh(new THREE.TorusGeometry(0.35,0.05,16,32), vortexMat.clone());
+vRing2.rotation.x = Math.PI/2; vRing2.position.y = -0.15; blowerGroup.add(vRing2);
+
+// ==================== 仪表 ====================
+const gaugeGroup = new THREE.Group();
+['P/T ①','P/T ②','P/T ③','P/T ④'].forEach((l,i) => {
+  const xs = [-4.2, -4.2, 4.2, 4.2];
+  const zs = [1.0, 0.0, 1.0, 0.0];
+  gaugeGroup.add(createGauge([xs[i], 0.5, zs[i]], l));
+});
+scene.add(gaugeGroup);
+
+// ==================== 粒子系统 ====================
+const particlesGroup = new THREE.Group(); scene.add(particlesGroup);
+
+const pipePaths = {
+  bypass: { curve: bypassPipe.userData.curve, r:0.19, color:'#ffb74d' },
+  dn80:   { curve: dn80Pipe.userData.curve,   r:0.24, color:'#88ddff' },
+  dn50:   { curve: dn50Pipe.userData.curve,   r:0.17, color:'#88ffcc' },
+  dn32:   { curve: dn32Pipe.userData.curve,   r:0.12, color:'#aaffcc' },
+  sL:     { curve: supplyHdr.userData.curve,  r:0.28, color:'#aaccee' },
+  sR:     { curve: returnHdr.userData.curve,  r:0.28, color:'#aaccee' },
+};
+
+const MAX_P = 200;
+const particleSystems = {};
+Object.entries(pipePaths).forEach(([key, { curve, r, color }]) => {
+  const geo = new THREE.SphereGeometry(r*0.5, 6, 6);
+  const mat = new THREE.MeshStandardMaterial({ color, roughness:0.2, metalness:0.1, emissive:color, emissiveIntensity:0.75 });
+  const im = new THREE.InstancedMesh(geo, mat, MAX_P);
+  im.castShadow = true; im.count = 0; im.visible = false;
+  const dummy = new THREE.Object3D();
+  const particles = Array.from({length:MAX_P}, () => ({ t:Math.random(), speed:0, active:false }));
+  for (let i=0;i<MAX_P;i++) { dummy.position.set(0,-999,0); dummy.scale.set(1,1,1); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); }
+  im.userData = { particles, curve, dummy, key };
+  particleSystems[key] = im;
+  particlesGroup.add(im);
+});
+
+// ==================== 动画状态 ====================
+let currentSceneIdx = 0;
+let phaseIdx = 0;
+let phaseTimer = 0;
+let autoPlay = true;
+let playSpeed = 1.0;
+let sceneComplete = false;
+
+const blowerRunning = { cur:0, tgt:0 };
+const bypassPct = { cur:0, tgt:0 };
+const flow = { dn80:0, dn50:0, dn32:0, bypass:0 };
+let currentDN = 'DN80';
+
+// 标定点记录
+const calPoints = []; // {pt, stdFlow, dutFlow, deviation}
+const CAL_POINT_NAMES = ['q_max', '0.70q_max', '0.40q_max', '0.25q_max', 'q_t', 'q_min'];
+
+function initCalTable() {
+  calPoints.length = 0;
+  const tbody = document.getElementById('cal-tbody');
+  tbody.innerHTML = CAL_POINT_NAMES.map((n,i) =>
+    `<tr><td>${i+1}</td><td class="pt">${n}</td><td id="cs${i}">—</td><td id="cd${i}">—</td><td id="ce${i}">—</td></tr>`
+  ).join('');
+}
+initCalTable();
+
+function recordCalPoint(idx, stdFlowRate) {
+  const dutFlowRate = stdFlowRate * (0.985 + Math.random()*0.03); // 被检表略低
+  const dev = ((dutFlowRate - stdFlowRate) / stdFlowRate * 100).toFixed(2);
+  calPoints[idx] = { pt: CAL_POINT_NAMES[idx], stdFlow: stdFlowRate, dutFlow: dutFlowRate, deviation: parseFloat(dev) };
+  document.getElementById(`cs${idx}`).textContent = `${(stdFlowRate*120).toFixed(2)}`;
+  document.getElementById(`cd${idx}`).textContent = `${(dutFlowRate*120).toFixed(2)}`;
+  document.getElementById(`ce${idx}`).textContent = `${dev}%`;
+  document.getElementById(`ce${idx}`).style.color = Math.abs(dev) < 0.5 ? '#4caf84' : '#ff9100';
+  [ `cs${idx}`,`cd${idx}`,`ce${idx}` ].forEach(id => {
+    document.getElementById(id).classList.add('done');
+    document.getElementById(id).classList.remove('current');
+  });
+}
+
+function highlightCalPoint(idx) {
+  [ `cs${idx}`,`cd${idx}`,`ce${idx}` ].forEach(id => {
+    document.getElementById(id).classList.add('current');
+    document.getElementById(id).classList.remove('done');
+  });
+}
+
+function clearCalHighlight() {
+  CAL_POINT_NAMES.forEach((_,i) => {
+    [ `cs${i}`,`cd${i}`,`ce${i}` ].forEach(id => document.getElementById(id).classList.remove('current'));
+  });
+}
+
+// ==================== 场景定义 ====================
+function makeScene(name, desc, principles, phases) { return { name, desc, principles, phases }; }
+function ph(time, action, params, desc) { return { time, action, params:params||{}, desc:desc||'' }; }
+
+// 辅助：批量阀门操作
+function V(...names) { return { valves: names }; }
+
+const scenes = [
+  // === 场景 1: 初始工艺流程导通 (PPT Slide 21) ===
+  makeScene('步骤一：初始工艺流程导通', '建立安全回路 — 阀门逐级开启（幻灯片21）', [
+    {tag:'key', text:'安全回路优先：旁通安全阀 FV134/HV144 最先导通，确保异常工况下气体可旁通释放，防止管路超压。'},
+    {tag:'key', text:'串联比较法：标准表与被检表串联在同一管路中，流过相同流量 q_s ≈ q_m，通过比较两者示值计算相对偏差。'},
+    {tag:'formula', text:'检定公式：E = (Q_m - Q_s) / Q_s × 100%，其中 Q_s 为标准表流量，Q_m 为被检表流量。'},
+    {tag:'key', text:'全阀导通 & 风机不启：此时粒子静止——仅建立物理通路，尚未施加驱动源，确保电气与流体分离的安全上电顺序。'},
+  ], [
+    ph(0,    'flash',  V('FV134','HV144'), '旁通安全阀 FV134、HV144 闪烁'),
+    ph(1.2,  'setV',   { valves:['FV134','HV144'], state:'open' }, 'FV134、HV144 导通 ✓ — 建立旁通安全回路'),
+    ph(2.5,  'flash',  V('HV125','HV115','HV172'), 'DN80 标准表管路阀门闪烁'),
+    ph(3.8,  'setV',   { valves:['HV125','HV115','HV172'], state:'open' }, 'HV125、HV115、HV172 导通 ✓'),
+    ph(5.0,  'flash',  V('HV171','HV111','HV121'), 'DN80 被检表管路阀门闪烁'),
+    ph(6.2,  'setV',   { valves:['HV171','HV111','HV121'], state:'open' }, 'HV171、HV111、HV121 导通 ✓'),
+    ph(7.5,  'flash',  V('FV131','HV141','FV132','HV142','FV133','HV143','HV173','HV175','HV176'), '流量调节回路全部阀门闪烁'),
+    ph(9.0,  'setV',   { valves:['FV131','HV141','FV132','HV142','FV133','HV143','HV173','HV175','HV176'], state:'open' }, '流量调节阀 & 站场阀门全部导通 ✓'),
+    ph(10.5, 'status', {}, '✅ 安全回路导通完毕 — 风机尚未启动，管道内粒子静止'),
+  ]),
+
+  // === 场景 2: 驱动源启泵 (PPT Slide 22) ===
+  makeScene('步骤二：驱动源启泵（系统建压）', '启动风机 C301 — 气体循环建立压力（幻灯片22）', [
+    {tag:'key', text:'先通循环阀再启动风机：HV163/HV162/HV314 先导通建立回流路径，防止风机憋压启动造成机械损坏或管路冲击。'},
+    {tag:'formula', text:'气体状态方程：PV = ZnRT。建压过程中 P↑、T↑，需等 P/T 稳定后方可开始检定，否则密度波动引入测量误差。'},
+    {tag:'key', text:'闭环循环原理：气体在风机→主管路→旁通→风机之间形成闭合回路，无需外部气源持续补气，节能且压力稳定。'},
+  ], [
+    ph(0,    'flash',  V('HV163','HV162','HV314'), '风机循环专用阀 HV163、HV162、HV314 闪烁'),
+    ph(1.5,  'setV',   { valves:['HV163','HV162','HV314'], state:'open' }, '循环阀导通 ✓ — 确认循环回路畅通'),
+    ph(2.8,  'blower', { on:true }, '🔧 风机 C301 启动 — 叶轮旋转，气旋产生'),
+    ph(4.0,  'flowAll',{ rate:0.12 }, '气体粒子开始在闭环回路中缓慢流动'),
+    ph(5.5,  'status', {}, '✅ 系统建压中 — 压力/温度数值动态跳动 — 准备检定'),
+  ]),
+
+  // === 场景 3: DN80 阶梯检定 (PPT Slide 23) ===
+  makeScene('步骤三：DN80 口径阶梯检定', '6 点标定 — 旁通调节 + 调节阀联控（幻灯片23）', [
+    {tag:'formula', text:'标定点序列（JJG 1030）：q_max → 0.70q_max → 0.40q_max → 0.25q_max → q_t → q_min，覆盖全量程线性度验证。'},
+    {tag:'key', text:'旁通分流调节原理：旁通阀是气体进入闭环的"入口"。关小旁通→旁通阻力↑→更多气体被"挤"入主管路→主管流速↑。'},
+    {tag:'key', text:'量程比（Rangeability）：q_max / q_min。DN80 量程比通常 20:1~50:1，旁通全开+调节阀联控才能覆盖极小流量点。'},
+    {tag:'warn', text:'调节阀联控逻辑：当旁通阀开至 100% 主管流量仍大于目标值时，关小调节阀 FV131~133 增加串联流阻，迫使更多气体走旁通。'},
+    {tag:'formula', text:'每个标定点至少重复 3 次（0.5 级表 ≥ 6 次），取平均值计算 K 系数：K_i = Q_{std} / f_{dut}，其中 f 为被检表输出频率。'},
+  ], [
+    // q_max
+    ph(0,    'calPt',  { idx:0, target:'q_max' }, '🎯 目标: q_max — 调节旁通阀…'),
+    ph(0.5,  'bypass', { pct:28 }, '旁通阀 FV134 关小至 28%'),
+    ph(2.5,  'setFlow',{ dn:'dn80', rate:1.0 }, '░ DN80 粒子高速流动 — 达到 q_max'),
+    ph(3.5,  'record', { idx:0, rate:1.0 }, '📝 采集第 1 点数据 ✓'),
+    // 0.70q_max
+    ph(5.0,  'calPt',  { idx:1, target:'0.70q_max' }, '🎯 目标: 0.70q_max'),
+    ph(5.5,  'bypass', { pct:52 }, '旁通阀 FV134 开至 52%'),
+    ph(7.5,  'setFlow',{ dn:'dn80', rate:0.70 }, '粒子减速至 0.70q_max'),
+    ph(8.5,  'record', { idx:1, rate:0.70 }, '📝 采集第 2 点数据 ✓'),
+    // 0.40q_max
+    ph(10.0, 'calPt',  { idx:2, target:'0.40q_max' }, '🎯 目标: 0.40q_max'),
+    ph(10.5, 'bypass', { pct:73 }, '旁通阀开至 73%'),
+    ph(12.5, 'setFlow',{ dn:'dn80', rate:0.40 }, '粒子减速至 0.40q_max'),
+    ph(13.5, 'record', { idx:2, rate:0.40 }, '📝 采集第 3 点数据 ✓'),
+    // 0.25q_max
+    ph(15.0, 'calPt',  { idx:3, target:'0.25q_max' }, '🎯 目标: 0.25q_max'),
+    ph(15.5, 'bypass', { pct:88 }, '旁通阀开至 88%'),
+    ph(17.5, 'setFlow',{ dn:'dn80', rate:0.25 }, '粒子减速至 0.25q_max'),
+    ph(18.5, 'record', { idx:3, rate:0.25 }, '📝 采集第 4 点数据 ✓'),
+    // q_t
+    ph(20.0, 'calPt',  { idx:4, target:'q_t' }, '🎯 目标: q_t（过渡流量）'),
+    ph(20.5, 'bypass', { pct:100 }, '旁通阀全开 100% — 流量仍超标'),
+    ph(22.0, 'throttle',{ pct:55 }, '⚠ 调节阀 FV131~133 关小至 55%'),
+    ph(24.0, 'setFlow',{ dn:'dn80', rate:0.10 }, '粒子减速至 q_t'),
+    ph(25.0, 'record', { idx:4, rate:0.10 }, '📝 采集第 5 点数据 ✓'),
+    // q_min
+    ph(26.5, 'calPt',  { idx:5, target:'q_min' }, '🎯 目标: q_min（最小流量）'),
+    ph(27.0, 'throttle',{ pct:28 }, '⚠ 调节阀 FV131~133 关至 28%'),
+    ph(29.0, 'setFlow',{ dn:'dn80', rate:0.04 }, '░ DN80 粒子极度缓慢 — 卡准 q_min'),
+    ph(30.5, 'record', { idx:5, rate:0.04 }, '📝 采集第 6 点数据 ✓'),
+    ph(32.0, 'status', {}, '✅ DN80 全部 6 个标定点采集完成！准备切换 DN50'),
+  ]),
+
+  // === 场景 4: DN80→DN50 切换 (PPT Slide 24) ===
+  makeScene('步骤四：并联管路无扰切换（DN80→DN50）', '流量再分配 — 双管分流防停旋（幻灯片24）', [
+    {tag:'key', text:'先通后断（Make-Before-Break）：先打开目标管路（DN50），确认流量正常后，再关闭原管路（DN80），保证检定不中断。'},
+    {tag:'warn', text:'防停旋原则：双管并联时需调节旁通确保每根管路的流速均高于其各自的 q_min，否则涡轮/超声流量计会因流速过低而停转或报错。'},
+    {tag:'formula', text:'并联分流公式：Q_{总} ≈ Q_{DN80} + Q_{DN50}。旁通调节改变 Q_{总} 分配比例，管径越粗→阻力越小→分得的流量越大。'},
+    {tag:'key', text:'切换时序：① 调旁通使双管均 > q_min → ② 开目标管阀门 → ③ 旁通全开稀释总流量 → ④ 关原管路阀门 → ⑤ 关旁通使目标管升至 q_max。'},
+  ], [
+    ph(0,    'throttle',{ pct:100, restore:true }, 'FV131~133 恢复 100% 全开'),
+    ph(1.5,  'bypass', { pct:55 }, '调节旁通至适中开度'),
+    ph(3.0,  'flash',  V('HV113','HV123'), 'DN50 隔离阀 HV113、HV123 闪烁'),
+    ph(4.5,  'setV',   { valves:['HV113','HV123'], state:'open' }, 'DN50 管路导通 ✓'),
+    ph(5.5,  'flowShare',{ dn80:0.45, dn50:0.40 }, '⬡ DN80 + DN50 双管同时流动（均高于各自 q_min）'),
+    ph(7.5,  'bypass', { pct:100 }, '旁通阀全开 — 稀释总流量准备切换'),
+    ph(9.0,  'setV',   { valves:['HV111','HV121'], state:'closed' }, '🔴 DN80 进出口阀 HV111、HV121 关闭'),
+    ph(10.0, 'setFlow',{ dn:'dn80', rate:0 }, 'DN80 管道粒子停止'),
+    ph(11.0, 'bypass', { pct:32 }, '关小旁通至 32% — DN50 粒子猛烈加速'),
+    ph(12.5, 'setFlow',{ dn:'dn50', rate:1.0 }, '▰ DN50 达到 q_max — 开启 DN50 阶梯标定 ✓'),
+  ]),
+
+  // === 场景 5: DN50 阶梯检定 (PPT Slide 25) ===
+  makeScene('步骤五：DN50 口径阶梯检定', '6 点标定 — 重复阶梯降流量（幻灯片25）', [
+    {tag:'formula', text:'管径与流速关系：Q = v × A = v × πD²/4。相同流量下，DN50 流速约为 DN80 的 (80/50)² ≈ 2.56 倍。'},
+    {tag:'key', text:'逐台比对法：每个口径的被检表都需与同一台标准表进行 6 点全量程比对，形成完整的量值溯源链：工作级→次级→原级标准。'},
+    {tag:'key', text:'K 系数线性度：6 个标定点计算出的 K 系数应在允许范围内一致。若 K 系数随流量明显漂移，说明仪表线性度不合格。'},
+  ], [
+    ph(0,    'switchDN','DN50', '切换: DN50 管道'),
+    ph(0.5,  'calPt',  { idx:0, target:'q_max' }, '🎯 DN50 — q_max'),
+    ph(1.5,  'bypass', { pct:35 }, ''),
+    ph(3.0,  'setFlow',{ dn:'dn50', rate:1.0 }, ''),
+    ph(3.5,  'record', { idx:0, rate:1.0 }, '📝 第1点 ✓'),
+    ph(5.0,  'calPt',  { idx:1, target:'0.70q_max' }, '🎯 0.70q_max'),
+    ph(5.5,  'bypass', { pct:58 }, ''),
+    ph(7.0,  'setFlow',{ dn:'dn50', rate:0.70 }, ''),
+    ph(7.5,  'record', { idx:1, rate:0.70 }, '📝 第2点 ✓'),
+    ph(9.0,  'calPt',  { idx:2, target:'0.40q_max' }, '🎯 0.40q_max'),
+    ph(9.5,  'bypass', { pct:78 }, ''),
+    ph(11.0, 'setFlow',{ dn:'dn50', rate:0.40 }, ''),
+    ph(11.5, 'record', { idx:2, rate:0.40 }, '📝 第3点 ✓'),
+    ph(13.0, 'calPt',  { idx:3, target:'0.25q_max' }, '🎯 0.25q_max'),
+    ph(13.5, 'bypass', { pct:90 }, ''),
+    ph(15.0, 'setFlow',{ dn:'dn50', rate:0.25 }, ''),
+    ph(15.5, 'record', { idx:3, rate:0.25 }, '📝 第4点 ✓'),
+    ph(17.0, 'calPt',  { idx:4, target:'q_t' }, '🎯 q_t'),
+    ph(17.5, 'bypass', { pct:100 }, '旁通全开'),
+    ph(19.0, 'throttle',{ pct:48 }, '调节阀节流'),
+    ph(20.5, 'setFlow',{ dn:'dn50', rate:0.09 }, ''),
+    ph(21.0, 'record', { idx:4, rate:0.09 }, '📝 第5点 ✓'),
+    ph(22.5, 'calPt',  { idx:5, target:'q_min' }, '🎯 q_min'),
+    ph(23.0, 'throttle',{ pct:25 }, '调节阀关至 25%'),
+    ph(24.5, 'setFlow',{ dn:'dn50', rate:0.035 }, ''),
+    ph(25.0, 'record', { idx:5, rate:0.035 }, '📝 第6点 ✓'),
+    ph(26.0, 'status', {}, '✅ DN50 全部 6 点采集完成！准备切换 DN32'),
+  ]),
+
+  // === 场景 6: DN50→DN32 切换 (PPT Slide 26) ===
+  makeScene('步骤六：小口径切换（DN50→DN32）', '压低流量 — 安全切入 DN32 管路（幻灯片26）', [
+    {tag:'warn', text:'小口径切换的特殊风险：DN32 的 q_max 远小于 DN50（约为其 1/3）。若直接切换，DN32 管路会瞬间超量程，可能损坏被检表。'},
+    {tag:'key', text:'预降压策略：切换前先将 DN50 流量通过旁通压低至 ~10 m³/h，使总流量落入 DN32 的可接受范围内，再打开 DN32 阀门。'},
+    {tag:'formula', text:'DN32 q_max ≈ (32/50)² × DN50 q_max ≈ 0.41 × DN50 q_max。所以必须先大幅降压才能安全切换。'},
+    {tag:'key', text:'切换确认：双管同时有流、且均高于 q_min 后，才能关闭 DN50 阀门。这是"先通后断"原则在小口径场景的严格应用。'},
+  ], [
+    ph(0,    'throttle',{ pct:100, restore:true }, 'FV131~133 恢复全开'),
+    ph(1.5,  'bypass', { pct:85 }, '调节旁通 — DN50 流量压低至约 10 m³/h'),
+    ph(3.5,  'setFlow',{ dn:'dn50', rate:0.18 }, 'DN50 流速降至 ~10 m³/h'),
+    ph(5.0,  'flash',  V('HV112','HV122'), 'DN32 隔离阀 HV112、HV122 闪烁'),
+    ph(6.5,  'setV',   { valves:['HV112','HV122'], state:'open' }, 'DN32 管路导通 ✓'),
+    ph(7.5,  'flowShare',{ dn50:0.15, dn32:0.25 }, '⬡ DN50 + DN32 双管分流（均高于各自 q_min）'),
+    ph(9.5,  'setV',   { valves:['HV113','HV123'], state:'closed' }, '🔴 DN50 隔离阀 HV113、HV123 关闭'),
+    ph(10.5, 'setFlow',{ dn:'dn50', rate:0 }, 'DN50 管道粒子停止'),
+    ph(11.5, 'bypass', { pct:38 }, '关小旁通至 38% — DN32 粒子加速'),
+    ph(13.0, 'setFlow',{ dn:'dn32', rate:1.0 }, '▰ DN32 达到 q_max — 开启 DN32 阶梯标定 ✓'),
+  ]),
+
+  // === 场景 7: DN32 阶梯检定 (PPT Slide 27) ===
+  makeScene('步骤七：DN32 口径阶梯检定', '6 点标定 — 最小口径（幻灯片27）', [
+    {tag:'key', text:'小口径高灵敏度：DN32 管径最小，对调节阀的微调极为敏感。调节阀开度从 42%→20% 即可实现 q_max→q_min 的全量程覆盖。'},
+    {tag:'formula', text:'雷诺数 Re = ρvD/μ。小口径下 Re 数较低，流动状态可能从湍流过渡到层流，对流量计的线性度影响更大。'},
+    {tag:'key', text:'三层嵌套调节：① 粗调 = 旁通阀（大范围分流）→ ② 中调 = 调节阀组 FV131~133（串联节流）→ ③ 微调 = 对单阀的精细开度控制。'},
+  ], [
+    ph(0,    'switchDN','DN32', '切换: DN32 管道'),
+    ph(0.5,  'calPt',  { idx:0, target:'q_max' }, '🎯 DN32 — q_max'),
+    ph(1.5,  'bypass', { pct:42 }, ''),
+    ph(3.0,  'setFlow',{ dn:'dn32', rate:1.0 }, ''),
+    ph(3.5,  'record', { idx:0, rate:1.0 }, '📝 第1点 ✓'),
+    ph(5.0,  'calPt',  { idx:1, target:'0.70q_max' }, '🎯 0.70q_max'),
+    ph(5.5,  'bypass', { pct:62 }, ''),
+    ph(7.0,  'setFlow',{ dn:'dn32', rate:0.70 }, ''),
+    ph(7.5,  'record', { idx:1, rate:0.70 }, '📝 第2点 ✓'),
+    ph(9.0,  'calPt',  { idx:2, target:'0.40q_max' }, '🎯 0.40q_max'),
+    ph(9.5,  'bypass', { pct:80 }, ''),
+    ph(11.0, 'setFlow',{ dn:'dn32', rate:0.40 }, ''),
+    ph(11.5, 'record', { idx:2, rate:0.40 }, '📝 第3点 ✓'),
+    ph(13.0, 'calPt',  { idx:3, target:'0.25q_max' }, '🎯 0.25q_max'),
+    ph(13.5, 'bypass', { pct:92 }, ''),
+    ph(15.0, 'setFlow',{ dn:'dn32', rate:0.25 }, ''),
+    ph(15.5, 'record', { idx:3, rate:0.25 }, '📝 第4点 ✓'),
+    ph(17.0, 'calPt',  { idx:4, target:'q_t' }, '🎯 q_t'),
+    ph(17.5, 'bypass', { pct:100 }, '旁通全开'),
+    ph(19.0, 'throttle',{ pct:42 }, '调节阀节流'),
+    ph(20.5, 'setFlow',{ dn:'dn32', rate:0.08 }, ''),
+    ph(21.0, 'record', { idx:4, rate:0.08 }, '📝 第5点 ✓'),
+    ph(22.5, 'calPt',  { idx:5, target:'q_min' }, '🎯 q_min'),
+    ph(23.0, 'throttle',{ pct:20 }, '调节阀关至 20%'),
+    ph(24.5, 'setFlow',{ dn:'dn32', rate:0.03 }, ''),
+    ph(25.0, 'record', { idx:5, rate:0.03 }, '📝 第6点 ✓'),
+    ph(26.0, 'status', {}, '✅ DN32 全部 6 点采集完成！检定结束 — 准备停机复位'),
+  ]),
+
+  // === 场景 8: 系统复位 (PPT Slide 28) ===
+  makeScene('步骤八：系统复位', '风机停机 — 所有阀门恢复待机状态（幻灯片28）', [
+    {tag:'key', text:'安全停机顺序：先停风机→待粒子完全静止→再逐级关阀。若先关阀后停风机，管路憋压可能损坏阀门密封面或仪表传感器。'},
+    {tag:'key', text:'常闭待机原则：所有阀门默认处于关闭（红色）状态。下次实验时重新按步骤导通，确保每次实验从确定的安全初始状态出发。'},
+    {tag:'formula', text:'检定结论：3 个口径 × 6 个标定点 = 18 组数据。若所有点的 |E| ≤ 0.5%（0.5 级表），则出具合格证书；否则出具不合格通知并建议返厂校准。'},
+  ], [
+    ph(0,    'blower', { on:false }, '🔧 风机 C301 停止旋转 — 按操作规程逐步停机'),
+    ph(2.0,  'flowAll',{ rate:0 }, '管道内所有粒子逐渐减速'),
+    ph(4.0,  'status', {}, '粒子完全静止 — 关闭所有开启阀门'),
+    ph(5.5,  'resetAll', {}, '🔄 全部阀门恢复红色关闭/待机状态'),
+    ph(7.5,  'status', {}, '✅ 实验装置已恢复初始状态 — 检定实验全部完成'),
+  ]),
+];
+
+// ==================== 动作执行 ====================
+let toastTimer = 0;
+function showToast(msg) {
+  const el = document.getElementById('status-toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  toastTimer = 1.8;
+  setTimeout(() => { if (toastTimer <= 0) el.classList.remove('show'); }, 1800);
+}
+
+function executeAction(action, params, desc) {
+  if (desc) {
+    document.getElementById('scene-desc').textContent = desc;
+  }
+  switch(action) {
+    case 'flash': {
+      params.valves.forEach(name => {
+        if (!valves[name]) return;
+        const origEmissive = valves[name].userData.body.material.emissive.getHex();
+        valves[name].userData.body.material.emissive.set('#ffff88');
+        valves[name].userData.body.material.emissiveIntensity = 1.8;
+        setTimeout(() => {
+          if (valves[name]) {
+            const c = valves[name].userData.isOpen ? '#4caf84' : (valves[name].userData.throttled ? '#ff9100' : '#e0556a');
+            valves[name].userData.body.material.emissive.set(c);
+            valves[name].userData.body.material.emissiveIntensity = valves[name].userData.throttled ? 0.85 : 0.4;
+          }
+        }, 700);
+      });
+      break;
+    }
+    case 'setV': {
+      params.valves.forEach(name => {
+        if (valves[name]) setValveState(valves[name], params.state);
+      });
+      break;
+    }
+    case 'blower':
+      blowerRunning.tgt = params.on ? 1 : 0;
+      if (params.on) showToast('🔧 风机 C301 启动');
+      else showToast('⏹ 风机 C301 停机');
+      break;
+    case 'flowAll':
+      Object.keys(flow).forEach(k => { flow[k] = params.rate; });
+      Object.keys(particleSystems).forEach(k => {
+        if (!['sL','sR'].includes(k)) particleSystems[k].visible = params.rate > 0.005;
+      });
+      break;
+    case 'bypass':
+      bypassPct.tgt = params.pct / 100;
+      break;
+    case 'setFlow': {
+      const dn = params.dn;
+      if (dn === 'dn80') { flow.dn80 = params.rate; particleSystems['dn80'].visible = params.rate > 0.005; }
+      if (dn === 'dn50') { flow.dn50 = params.rate; particleSystems['dn50'].visible = params.rate > 0.005; }
+      if (dn === 'dn32') { flow.dn32 = params.rate; particleSystems['dn32'].visible = params.rate > 0.005; }
+      break;
+    }
+    case 'flowShare': {
+      if (params.dn80 !== undefined) { flow.dn80 = params.dn80; particleSystems['dn80'].visible = params.dn80 > 0.005; }
+      if (params.dn50 !== undefined) { flow.dn50 = params.dn50; particleSystems['dn50'].visible = params.dn50 > 0.005; }
+      if (params.dn32 !== undefined) { flow.dn32 = params.dn32; particleSystems['dn32'].visible = params.dn32 > 0.005; }
+      break;
+    }
+    case 'throttle': {
+      if (params.restore) {
+        ['FV131','FV132','FV133'].forEach(name => {
+          if (valves[name]) setValveState(valves[name], 'open');
+        });
+      } else {
+        ['FV131','FV132','FV133'].forEach(name => {
+          if (valves[name]) setValveState(valves[name], 'throttle');
+        });
+      }
+      break;
+    }
+    case 'calPt': {
+      const ptName = params.target;
+      document.getElementById('vpt').textContent = ptName;
+      clearCalHighlight();
+      highlightCalPoint(params.idx);
+      showToast(`🎯 目标: ${ptName}`);
+      break;
+    }
+    case 'record': {
+      recordCalPoint(params.idx, params.rate);
+      showToast(`📝 采集 ${CAL_POINT_NAMES[params.idx]} 数据 ✓`);
+      break;
+    }
+    case 'switchDN': {
+      currentDN = params;
+      document.getElementById('vd').textContent = params;
+      showToast(`🔄 切换至 ${params} 管道`);
+      break;
+    }
+    case 'status': {
+      showToast(params || desc || '');
+      break;
+    }
+    case 'resetAll': {
+      Object.values(valves).forEach(v => setValveState(v, 'closed'));
+      break;
+    }
+  }
+}
+
+// ==================== 场景点指示器 ====================
+function buildSceneDots() {
+  const container = document.getElementById('scene-dots');
+  container.innerHTML = scenes.map((_,i) =>
+    `<span class="scene-dot${i===0?' active':''}" data-idx="${i}" title="步骤${i+1}"></span>`
+  ).join('');
+  // 点击跳转
+  container.querySelectorAll('.scene-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      const idx = parseInt(dot.dataset.idx);
+      jumpToScene(idx);
+    });
+  });
+}
+
+function updateSceneDots() {
+  document.querySelectorAll('.scene-dot').forEach((dot,i) => {
+    dot.classList.remove('active','done');
+    if (i < currentSceneIdx) dot.classList.add('done');
+    if (i === currentSceneIdx) dot.classList.add('active');
+  });
+}
+
+function jumpToScene(idx) {
+  currentSceneIdx = Math.max(0, Math.min(scenes.length-1, idx));
+  phaseIdx = 0;
+  phaseTimer = 0;
+  sceneComplete = false;
+  initCalTable();
+  // 重置到该场景初始状态
+  resetStateForScene(currentSceneIdx);
+  updateSceneUI();
+  updateSceneDots();
+}
+
+function resetStateForScene(idx) {
+  // 关闭所有阀门
+  Object.values(valves).forEach(v => setValveState(v, 'closed'));
+  Object.keys(flow).forEach(k => { flow[k] = 0; });
+  bypassPct.tgt = 0; bypassPct.cur = 0;
+  blowerRunning.tgt = 0; blowerRunning.cur = 0;
+  Object.values(particleSystems).forEach(ps => { ps.visible = false; ps.count = 0; });
+  document.getElementById('vpt').textContent = '—';
+  document.getElementById('vd').textContent = '—';
+  clearCalHighlight();
+
+  // 根据目标场景恢复前置状态
+  if (idx >= 1) { // 场景1的阀门状态
+    ['FV134','HV144','HV125','HV115','HV172','HV171','HV111','HV121',
+     'FV131','HV141','FV132','HV142','FV133','HV143','HV173','HV175','HV176'].forEach(n => {
+      if (valves[n]) setValveState(valves[n], 'open');
+    });
+    if (idx >= 2) { // 风机循环阀 + 风机启动
+      ['HV163','HV162','HV314'].forEach(n => { if(valves[n]) setValveState(valves[n], 'open'); });
+      blowerRunning.tgt = 1; blowerRunning.cur = 1;
+      Object.keys(flow).forEach(k => { flow[k] = 0.12; });
+      Object.keys(particleSystems).forEach(k => {
+        if (!['sL','sR'].includes(k)) particleSystems[k].visible = true;
+      });
+      bypassPct.tgt = 1.0; bypassPct.cur = 1.0;
+      currentDN = 'DN80'; document.getElementById('vd').textContent = 'DN80';
+    }
+  }
+}
+
+// ==================== UI 更新 ====================
+function updatePrinciples(idx) {
+  const sc = scenes[idx];
+  const container = document.getElementById('principle-content');
+  if (!sc.principles || sc.principles.length === 0) {
+    container.innerHTML = '<div class="principle-item">暂无原理标注</div>';
+    return;
+  }
+  container.innerHTML = sc.principles.map((p, i) => {
+    const tagClass = p.tag || 'key';
+    const tagLabel = { formula: '公式', key: '原理', warn: '注意' }[tagClass] || '原理';
+    return `<div class="principle-item" style="animation-delay:${i*0.12}s">
+      <span class="p-tag ${tagClass}">${tagLabel}</span> ${p.text}
+    </div>`;
+  }).join('');
+}
+
+function updateSceneUI() {
+  const sc = scenes[currentSceneIdx];
+  document.getElementById('scene-label').textContent = sc.name;
+  updatePrinciples(currentSceneIdx);
+}
+
+function updateDataPanel() {
+  const press = blowerRunning.cur > 0.01 ? (15 + Math.sin(Date.now()*0.003)*3 + (flow.dn80*45+flow.dn50*28+flow.dn32*18)).toFixed(2) : '0.00';
+  const temp = (20 + (blowerRunning.cur > 0.01 ? (flow.dn80*8+flow.dn50*5+flow.dn32*3) : 0)).toFixed(1);
+  const totalFlow = (flow.dn80*120 + flow.dn50*55 + flow.dn32*28 + flow.bypass*60);
+  const rpm = blowerRunning.cur > 0.01 ? (1450 + Math.sin(Date.now()*0.002)*50).toFixed(0) : '0';
+  const bp = (bypassPct.cur*100).toFixed(0);
+
+  document.getElementById('vp').textContent = `${press} kPa`;
+  document.getElementById('vt').textContent = `${temp} °C`;
+  document.getElementById('vf').textContent = `${totalFlow.toFixed(2)} m³/h`;
+  document.getElementById('vr').textContent = `${rpm} rpm`;
+  document.getElementById('vb').textContent = `${bp}%`;
+
+  const activeFlow = flow.dn32>0.01 ? flow.dn32 : flow.dn50>0.01 ? flow.dn50 : flow.dn80>0.01 ? flow.dn80 : 0;
+  const stdPct = Math.min(100, activeFlow*100);
+  document.getElementById('bstd_f').style.width = `${stdPct}%`;
+  document.getElementById('bstd').textContent = `${(activeFlow*120).toFixed(1)} m³/h`;
+  document.getElementById('bdut_f').style.width = `${stdPct*0.97}%`;
+  document.getElementById('bdut').textContent = `${(activeFlow*116.4).toFixed(1)} m³/h`;
+}
+
+// ==================== 主循环 ====================
+const clock = new THREE.Clock();
+let totalElapsed = 0;
+
+function animate(ts) {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.1);
+  totalElapsed += dt;
+
+  controls.update();
+
+  // Toast 计时
+  if (toastTimer > 0) {
+    toastTimer -= dt;
+    if (toastTimer <= 0) document.getElementById('status-toast').classList.remove('show');
+  }
+
+  // 自动演示逻辑
+  if (autoPlay && !sceneComplete) {
+    const sc = scenes[currentSceneIdx];
+    if (sc && phaseIdx < sc.phases.length) {
+      const phase = sc.phases[phaseIdx];
+      if (phaseTimer >= phase.time) {
+        executeAction(phase.action, phase.params, phase.desc);
+        phaseIdx++;
+        phaseTimer = 0;
+      }
+    } else if (sc && phaseIdx >= sc.phases.length) {
+      sceneComplete = true;
+      if (currentSceneIdx < scenes.length - 1) {
+        // 等待后自动进入下一场景
+        if (phaseTimer > 3.5) {
+          currentSceneIdx++;
+          phaseIdx = 0;
+          phaseTimer = 0;
+          sceneComplete = false;
+          initCalTable();
+          updateSceneUI();
+          updateSceneDots();
+        }
+      } else {
+        // 全部完成
+        autoPlay = false;
+        document.getElementById('btn-auto').classList.remove('active-btn');
+        document.getElementById('btn-auto').textContent = '▶ 重新播放';
+        document.getElementById('scene-desc').textContent = '🎉 全部 8 个步骤完成 — 3 个口径 × 6 点 = 18 个标定点';
+      }
+    }
+  }
+
+  phaseTimer += dt * playSpeed;
+
+  // 平滑过渡
+  blowerRunning.cur += (blowerRunning.tgt - blowerRunning.cur) * dt * 2.0;
+  bypassPct.cur += (bypassPct.tgt - bypassPct.cur) * dt * 1.8;
+
+  // 风机旋转 & 气旋
+  if (blowerRunning.cur > 0.01) {
+    impellerGroup.rotation.y += dt * 18 * blowerRunning.cur;
+    const vscale = 0.7 + 0.3*blowerRunning.cur + Math.sin(totalElapsed*8)*0.15;
+    vRing.scale.setScalar(vscale);
+    vRing2.scale.setScalar(vscale*0.85);
+    vRing.material.opacity = 0.12 + blowerRunning.cur*0.35;
+    vRing2.material.opacity = 0.08 + blowerRunning.cur*0.3;
+    vRing.rotation.z += dt*3;
+    vRing2.rotation.z -= dt*2.5;
+  } else {
+    vRing.material.opacity = 0.03;
+    vRing2.material.opacity = 0.03;
+  }
+
+  // 更新粒子
+  Object.entries(particleSystems).forEach(([key, mesh]) => {
+    const { particles, curve, dummy } = mesh.userData;
+    if (!mesh.visible) { mesh.count = 0; mesh.instanceMatrix.needsUpdate = true; return; }
+    const rate = key==='dn80' ? flow.dn80 : key==='dn50' ? flow.dn50 :
+                 key==='dn32' ? flow.dn32 : key==='bypass' ? flow.bypass :
+                 Math.max(flow.dn80,flow.dn50,flow.dn32,flow.bypass)*0.6;
+    const activeCount = Math.floor(rate * 45);
+    mesh.count = activeCount;
+    for (let i=0;i<MAX_P;i++) {
+      const p = particles[i];
+      if (i < activeCount) {
+        if (!p.active) { p.t = Math.random(); p.active = true; }
+        p.speed = 0.02 + rate*0.28;
+        p.t += p.speed*dt;
+        if (p.t > 1.0) p.t -= 1.0;
+        const pt = curve.getPointAt(Math.max(0,Math.min(1,p.t)));
+        dummy.position.set(pt.x+(Math.random()-0.5)*0.07, pt.y+(Math.random()-0.5)*0.05, pt.z+(Math.random()-0.5)*0.07);
+        dummy.scale.setScalar(0.6+rate*2.0);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      } else {
+        p.active = false;
+        dummy.position.set(0,-999,0); dummy.scale.set(0,0,0);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      }
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  updateDataPanel();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+
+// ==================== 按钮事件 ====================
+document.getElementById('btn-prev').addEventListener('click', () => jumpToScene(currentSceneIdx - 1));
+document.getElementById('btn-next').addEventListener('click', () => {
+  if (currentSceneIdx < scenes.length - 1) {
+    jumpToScene(currentSceneIdx + 1);
+  } else if (sceneComplete) {
+    // 全部播完，重新开始
+    jumpToScene(0);
+    autoPlay = true;
+    document.getElementById('btn-auto').classList.add('active-btn');
+    document.getElementById('btn-auto').textContent = '⏯ 自动演示';
+  }
+});
+
+document.getElementById('btn-auto').addEventListener('click', function() {
+  if (currentSceneIdx === scenes.length - 1 && sceneComplete) {
+    // 重新播放
+    jumpToScene(0);
+  }
+  autoPlay = !autoPlay;
+  sceneComplete = false;
+  this.classList.toggle('active-btn', autoPlay);
+  this.textContent = autoPlay ? '⏯ 自动演示' : '▶ 手动播放';
+});
+
+document.getElementById('btn-speed').addEventListener('click', function() {
+  const speeds = [0.5, 1.0, 2.0, 3.0];
+  const labels = ['⏩ 0.5×', '⏩ 1×', '⏩ 2×', '⏩ 3×'];
+  const idx = speeds.indexOf(playSpeed);
+  const next = (idx + 1) % speeds.length;
+  playSpeed = speeds[next];
+  this.textContent = labels[next];
+});
+
+// 键盘
+window.addEventListener('keydown', e => {
+  switch(e.key) {
+    case 'ArrowLeft': document.getElementById('btn-prev').click(); break;
+    case 'ArrowRight': document.getElementById('btn-next').click(); break;
+    case ' ': e.preventDefault(); document.getElementById('btn-auto').click(); break;
+    case 'r': camera.position.set(8,6.5,10); controls.target.set(0,0.4,0.3); controls.update(); break;
+    case 't': camera.position.set(0,10,0.5); controls.target.set(0,0.4,0.3); controls.update(); break;
+    case 'f': camera.position.set(10,1.5,0); controls.target.set(0,0.4,0.3); controls.update(); break;
+    case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8':
+      jumpToScene(parseInt(e.key)-1); break;
+  }
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ==================== 启动 ====================
+buildSceneDots();
+updateSceneUI();
+updateDataPanel();
+document.getElementById('scene-desc').textContent = '🎬 自动演示中 — 空格暂停 ｜← → 切换步骤｜数字键 1-8 跳转｜R/T/F 视角';
+requestAnimationFrame(animate);
+
+console.log('🔬 流量计环道检定实验动画就绪');
+console.log('  8 个步骤 · 6 个标定点/口径 · 3 个口径 = 18 个标定点');
+console.log('  🖱 鼠标旋转 | 滚轮缩放 | 右键平移');
+console.log('  ⌨ 1-8: 跳转步骤 | ←→: 上/下一步 | 空格: 暂停 | R/T/F: 视角');
+</script>
+</body>
+</html>
